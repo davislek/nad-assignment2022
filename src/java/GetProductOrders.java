@@ -1,0 +1,106 @@
+
+import com.connection.DatabaseConnection;
+import java.io.IOException;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
+
+import java.sql.*;
+
+@WebServlet("/GetProductOrders")
+public class GetProductOrders extends HttpServlet {
+
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        //Creating Session
+        HttpSession hs = request.getSession();
+        int order_no = 1000;
+        int orderProducts = 0;
+        //Getting all the parameters from the user
+        int paymentId = Integer.parseInt(request.getParameter("payment_id"));
+       // int paymentId =0;
+        String customerName = request.getParameter("name");
+        String mobile_number = request.getParameter("phone");
+        String email_id = request.getParameter("email");
+        String address = request.getParameter("address");
+        String address_type = request.getParameter("addressType");
+        String pincode = request.getParameter("pincode");
+        String product_name = null;
+        int quantity = 0;
+        String product_price = null;
+        String product_selling_price = null;
+        String product_total_price = null;
+        String order_status = null;
+        String payment_mode = request.getParameter("payment");
+        HttpSession session = request.getSession();
+        String productLine=request.getParameter("pLine");
+        int total_sales=0;
+      
+        session.setAttribute("paymentId", paymentId);
+
+        try {
+            //Getting maximium column of tblorders table
+            ResultSet rsMaxOrderNo = DatabaseConnection.getResultFromSqlQuery("select max(order_no) from tblorders");
+            if (rsMaxOrderNo.next()) {
+                order_no = rsMaxOrderNo.getInt(1);
+                order_no = 1000 + order_no;
+            }
+            //Getting all the orders from the database
+            ResultSet totalProduct = DatabaseConnection.getResultFromSqlQuery("select tblproduct.name,tblcart.quantity,tblcart.mrp_price,tblcart.discount_price,tblcart.total_price,tblcart.product_id from tblproduct,tblcart where tblproduct.id=tblcart.product_id and customer_id='"
+                    + session.getAttribute("id") + "' ");
+            while (totalProduct.next()) {
+                order_no++;
+               // String image_name = totalProduct.getString(1);
+                product_name = totalProduct.getString(1);
+                quantity = totalProduct.getInt(2);
+                product_price = totalProduct.getString(3);
+                product_selling_price = totalProduct.getString(4);
+                product_total_price = totalProduct.getString(5);
+                order_status = "Pending";
+                
+                
+               /* if(productLine.equals("short_term"))
+                {
+                //inserting into the total sales table for short_term
+                 DatabaseConnection.insertUpdateFromSqlQuery("update tbltotalsales set total_sales='"+total_sales+"' where product_line='short_term' ");
+                 
+                }
+                if(productLine.equals("long_term"))
+                {
+                //inserting into the total sales table for long_term
+                 DatabaseConnection.insertUpdateFromSqlQuery("update tbltotalsales  set total_sales='"+total_sales+"' where product_line='long_term' ");
+                 
+                }
+                if(productLine.equals("mid_term"))
+                {
+                //inserting into the total sales table for short_term
+                 DatabaseConnection.insertUpdateFromSqlQuery("update tbltotalsales set total_sales='"+total_sales+"' where product_line='mid_term' ");
+                 
+                }*/
+                //Inserting product details inside the table
+                orderProducts = DatabaseConnection.insertUpdateFromSqlQuery(
+                        "insert into tblorders(order_no,customer_name,mobile_number,email_id,address,address_type,pincode,product_name,quantity,product_price,product_selling_price,product_total_price,order_status,payment_mode,payment_id) values('"
+                        + order_no + "','" + customerName + "','" + mobile_number + "','"
+                        + email_id + "','" + address + "','" + address_type + "','" + pincode + "','"
+                        + product_name + "','" + quantity + "','" + product_price + "','"
+                        + product_selling_price + "','" + product_total_price + "','" + order_status + "','"
+                        + payment_mode + "','" + paymentId + "')");
+            }
+            DatabaseConnection.insertUpdateFromSqlQuery("delete from tblcart where customer_id='" + session.getAttribute("id") + "'");
+            if (orderProducts > 0) {
+                //Sending response back to the user/customer
+                String message = "Thank you for your order.";
+                hs.setAttribute("success", message);
+                response.sendRedirect("checkout.jsp");
+            } else {
+                response.sendRedirect("checkout.jsp");
+            }
+        } catch (Exception e) {
+            System.out.println(e);
+        }
+    }
+}
